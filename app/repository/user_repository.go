@@ -9,6 +9,7 @@ import (
 
 type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (models.Users, error)
+	FindByID(ctx context.Context, id string) (models.Users, error)
 }
 
 type userRepository struct {
@@ -16,11 +17,11 @@ type userRepository struct {
 }
 
 func NewUserRepository(db *sql.DB) UserRepository {
-	return &userRepository{db}
+	return &userRepository{db: db}
 }
 
+// find user by username
 func (r *userRepository) FindByUsername(ctx context.Context, username string) (models.Users, error) {
-
 	var u models.Users
 
 	query := `
@@ -38,6 +39,41 @@ func (r *userRepository) FindByUsername(ctx context.Context, username string) (m
 	`
 
 	err := r.db.QueryRowContext(ctx, query, username).Scan(
+		&u.ID,
+		&u.Username,
+		&u.Email,
+		&u.PasswordHash,
+		&u.FullName,
+		&u.RoleID,
+		&u.IsActive,
+	)
+
+	if err != nil {
+		return u, errors.New("user not found")
+	}
+
+	return u, nil
+}
+
+// find user by id
+func (r *userRepository) FindByID(ctx context.Context, id string) (models.Users, error) {
+	var u models.Users
+
+	query := `
+		SELECT 
+			id,
+			username,
+			email,
+			password_hash,
+			full_name,
+			role_id,
+			is_active
+		FROM users
+		WHERE id = $1
+		LIMIT 1
+	`
+
+	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&u.ID,
 		&u.Username,
 		&u.Email,

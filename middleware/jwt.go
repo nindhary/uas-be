@@ -1,9 +1,11 @@
 package middleware
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"uas/app/repository"
+	"uas/helper"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -17,26 +19,56 @@ func NewJWTMiddleware(repo repository.UserRepository) *JWTMiddleware {
 	return &JWTMiddleware{repo}
 }
 
-func (mw *JWTMiddleware) RequireAuth(c *fiber.Ctx) error {
-	auth := c.Get("Authorization")
-	if auth == "" {
-		return c.Status(401).JSON(fiber.Map{"message": "unauthorized"})
+func (m *JWTMiddleware) RequireAuth(c *fiber.Ctx) error {
+	authHeader := c.Get("Authorization")
+	fmt.Println("=== DEBUG MIDDLEWARE ===")
+	fmt.Println("Authorization Header:", authHeader)
+
+	if authHeader == "" {
+		return helper.Error(c, 401, "missing Authorization header")
 	}
 
-	tokenString := strings.TrimPrefix(auth, "Bearer ")
+	tokenStr := strings.Replace(authHeader, "Bearer ", "", 1)
+	fmt.Println("Extracted Token:", tokenStr)
 
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("JWT_SECRET")), nil
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "DEFAULT_SECRET"
+	}
+
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
 	})
 
-	if err != nil || !token.Valid {
-		return c.Status(401).JSON(fiber.Map{"message": "invalid token"})
+	if err != nil {
+		fmt.Println("JWT Parse Error:", err)
+		return helper.Error(c, 401, "invalid or expired token")
+	}
+
+	if !token.Valid {
+		fmt.Println("Token invalid")
+		return helper.Error(c, 401, "invalid token")
 	}
 
 	claims := token.Claims.(jwt.MapClaims)
+	fmt.Println("Claims:", claims)
 
-	c.Locals("user_id", claims["id"])
-	c.Locals("role", claims["role"])
+	userID, ok := claims["id"].(string)
+	if !ok {
+		fmt.Println("ERROR: id claim missing or not string")
+		return helper.Error(c, 401, "invalid token claims")
+	}
 
+	fmt.Println("UserID from claims:", userID)
+
+	user, err := m.userRepo.FindByID(c.Context(), userID)
+	if err != nil {
+		fmt.Println("ERROR DB FindByID:", err)
+		return helper.Error(c, 401, "user not found")
+	}
+
+	fmt.Println("Loaded User:", user.Username)
+
+	c.Locals("user", user)
 	return c.Next()
 }

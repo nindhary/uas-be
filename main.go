@@ -16,7 +16,7 @@ import (
 func main() {
 	godotenv.Load()
 
-	database.ConnectDB() // tanpa :=
+	database.ConnectDB()
 
 	userRepo := repository.NewUserRepository(database.DB)
 	authService := service.NewAuthService(userRepo)

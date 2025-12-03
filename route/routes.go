@@ -9,12 +9,12 @@ import (
 
 func RegisterRoutes(app *fiber.App, auth service.AuthService, jwt *middleware.JWTMiddleware) {
 
-	api := app.Group("/api/v1")
+	api := app.Group("/app")
 
-	// AUTH
+	// auth
 	authRoute := api.Group("/auth")
 	authRoute.Post("/login", auth.LoginHandler)
+	authRoute.Post("/refresh", auth.RefreshHandler)
+	authRoute.Get("/profile", jwt.RequireAuth, auth.ProfileHandler)
 
-	// authRoute.Post("/refresh", auth.RefreshHandler)
-	// authRoute.Get("/profile", jwt.RequireAuth, auth.ProfileHandler)
 }
