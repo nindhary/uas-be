@@ -16,7 +16,11 @@ import (
 func main() {
 	godotenv.Load()
 
+<<<<<<< HEAD
 	database.ConnectDB()
+=======
+	database.ConnectDB() 
+>>>>>>> 8db01d80fd8acccf468599cee2f394153e223dd8
 
 	userRepo := repository.NewUserRepository(database.DB)
 	authService := service.NewAuthService(userRepo)
