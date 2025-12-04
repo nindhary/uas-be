@@ -69,6 +69,7 @@ func (m *JWTMiddleware) RequireAuth(c *fiber.Ctx) error {
 
 	fmt.Println("Loaded User:", user.Username)
 
+	c.Locals("userID", userID)
 	c.Locals("user", user)
 	return c.Next()
 }
