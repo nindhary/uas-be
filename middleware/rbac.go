@@ -19,7 +19,6 @@ func NewRBACMiddleware(userRepo repository.AdminUserRepository) *RBACMiddleware 
 // RequirePermission("user:manage")
 func (m *RBACMiddleware) RequirePermission(perm string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Ambil userID aman (tanpa panic)
 		userIDValue := c.Locals("userID")
 		userID, ok := userIDValue.(string)
 		if !ok || userID == "" {
@@ -29,7 +28,6 @@ func (m *RBACMiddleware) RequirePermission(perm string) fiber.Handler {
 			})
 		}
 
-		// Ambil permissions user
 		perms, err := m.users.GetUserPermissions(c.Context(), userID)
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{
@@ -38,7 +36,6 @@ func (m *RBACMiddleware) RequirePermission(perm string) fiber.Handler {
 			})
 		}
 
-		// Check permission
 		hasPerm := false
 		for _, p := range perms {
 			if p == perm {

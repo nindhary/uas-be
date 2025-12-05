@@ -16,25 +16,37 @@ import (
 func main() {
 	godotenv.Load()
 
+	// db connection
 	database.ConnectDB()
+	database.ConnectMongo()
 
-	// AUTH REPO
+	// auth
 	userRepo := repository.NewUserRepository(database.DB)
 	authService := service.NewAuthService(userRepo)
 
-	// ADMIN REPO DAN SERVICE
+	// admin
 	adminRepo := repository.NewAdminUserRepository(database.DB)
 	adminUserService := service.NewAdminUserService(adminRepo)
 
-	// MIDDLEWARE
+	// student dan lecturer
+	studentRepo := repository.NewStudentRepository(database.DB)
+	// lecturerRepo := repository.NewLecturerRepository(database.DB)
+
+	// achievements
+	achievementPGRepo := repository.NewAchievementRepository(database.DB)
+	achievementMongoRepo := repository.NewMongoAchievementRepository(database.Mongo)
+
+	studentAch := service.NewStudentAchievementService(
+		achievementPGRepo,
+		studentRepo,
+		achievementMongoRepo,
+	)
+
 	jwt := middleware.NewJWTMiddleware(userRepo)
 	rbac := middleware.NewRBACMiddleware(adminRepo)
 
-	// FIBER
 	app := fiber.New()
-
-	// gunakan route dengan 4 parameter seperti yang diminta compiler
-	route.RegisterRoutes(app, authService, adminUserService, jwt, rbac)
+	route.RegisterRoutes(app, authService, adminUserService, jwt, rbac, studentAch)
 
 	log.Println("Running on: http://localhost:3000")
 	app.Listen("0.0.0.0:3000")
