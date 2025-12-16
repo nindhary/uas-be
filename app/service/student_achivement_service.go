@@ -1,6 +1,8 @@
 package service
 
 import (
+	"os"
+	"path/filepath"
 	"time"
 	"uas/app/models"
 	"uas/app/repository"
@@ -277,9 +279,16 @@ func (s *studentAchievementService) GetHistory(c *fiber.Ctx) error {
 
 func (s *studentAchievementService) UploadAttachment(c *fiber.Ctx) error {
 	refID := uuid.MustParse(c.Params("id"))
+	user := c.Locals("user").(models.Users)
+
 	ref, err := s.repo.FindByID(c.Context(), refID)
 	if err != nil {
 		return helper.Error(c, 404, "achievement not found")
+	}
+
+	student, _ := s.studentRepo.FindByUserID(c.Context(), user.ID.String())
+	if ref.StudentID != student.ID {
+		return helper.Error(c, 403, "forbidden")
 	}
 
 	if ref.Status != "draft" {
@@ -291,9 +300,22 @@ func (s *studentAchievementService) UploadAttachment(c *fiber.Ctx) error {
 		return helper.Error(c, 400, "file required")
 	}
 
-	filename := ref.ID.String() + "-" + file.Filename
-	path := "./uploads/" + filename
-	c.SaveFile(file, path)
+	ext := filepath.Ext(file.Filename)
+	if ext != ".pdf" && ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+		return helper.Error(c, 400, "invalid file type")
+	}
+
+	baseDir := "./uploads" + ref.ID.String()
+	if err := os.MkdirAll(baseDir, os.ModePerm); err != nil {
+		return helper.Error(c, 500, "failed create upload dir")
+	}
+
+	filename := uuid.New().String() + ext
+	fullPath := baseDir + "/" + filename
+
+	if err := c.SaveFile(file, fullPath); err != nil {
+		return helper.Error(c, 500, "failed save file")
+	}
 
 	update := bson.M{
 		"$push": bson.M{
@@ -301,6 +323,7 @@ func (s *studentAchievementService) UploadAttachment(c *fiber.Ctx) error {
 			"history": bson.M{
 				"status":    "attachment-added",
 				"timestamp": time.Now(),
+				"changedBy": user.ID.String(),
 			},
 		},
 		"$set": bson.M{
@@ -308,10 +331,11 @@ func (s *studentAchievementService) UploadAttachment(c *fiber.Ctx) error {
 		},
 	}
 
-	err = s.mongo.UpdateByHexID(c.Context(), ref.MongoAchievementID, update)
-	if err != nil {
-		return helper.Error(c, 500, "failed to update attachments")
+	if err := s.mongo.UpdateByHexID(c.Context(), ref.MongoAchievementID, update); err != nil {
+		return helper.Error(c, 500, "failed update mongo")
 	}
 
-	return helper.Success(c, "attachment uploaded")
+	return helper.Success(c, fiber.Map{
+		"file": filename,
+	})
 }

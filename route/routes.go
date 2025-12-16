@@ -14,6 +14,7 @@ func RegisterRoutes(
 	jwt *middleware.JWTMiddleware,
 	rbac *middleware.RBACMiddleware,
 	studentAch service.StudentAchievementService,
+	lecturerAch service.LecturerAchievementService,
 ) {
 
 	api := app.Group("/app")
@@ -23,6 +24,7 @@ func RegisterRoutes(
 	authRoute.Post("/login", auth.LoginHandler)
 	authRoute.Post("/refresh", auth.RefreshHandler)
 	authRoute.Get("/profile", jwt.RequireAuth, auth.ProfileHandler)
+	// logout belum
 
 	// users
 	users := api.Group("/users")
@@ -33,9 +35,10 @@ func RegisterRoutes(
 	users.Put("/:id", jwt.RequireAuth, rbac.RequirePermission("user:manage"), adminUser.Update)
 	users.Delete("/:id", jwt.RequireAuth, rbac.RequirePermission("user:manage"), adminUser.Delete)
 	users.Put("/:id/role", jwt.RequireAuth, rbac.RequirePermission("user:manage"), adminUser.UpdateRole)
+	// yang update role ini nanti diubah buat update password aja
 
 	// achievements
-	achievement := api.Group("/achievements", jwt.RequireAuth)
+	achievement := api.Group("student/achievements", jwt.RequireAuth)
 
 	achievement.Get("/", rbac.RequirePermission("achievement:create"), studentAch.GetMyAchievements)
 	achievement.Post("/", rbac.RequirePermission("achievement:create"), studentAch.Create)
@@ -45,5 +48,12 @@ func RegisterRoutes(
 	achievement.Delete("/:id", rbac.RequirePermission("achievement:delete"), studentAch.Delete)
 	achievement.Post("/:id/submit", rbac.RequirePermission("achievement:submit"), studentAch.Submit)
 	achievement.Post("/:id/attachments", rbac.RequirePermission("achievement:upload"), studentAch.UploadAttachment)
+
+	lecturer := api.Group("lecturer/achievements", jwt.RequireAuth)
+	lecturer.Get("/", rbac.RequirePermission("achievement:read_advisee"), lecturerAch.GetAdviseeAchievements)
+	lecturer.Get("/:id", rbac.RequirePermission("achievement:read_advisee"), lecturerAch.GetDetail)
+	lecturer.Get("/:id/history", rbac.RequirePermission("achievement:read_advisee"), lecturerAch.GetHistory)
+	lecturer.Post("/:id/verify", rbac.RequirePermission("achievement:verify"), lecturerAch.Verify)
+	lecturer.Post("/:id/reject", rbac.RequirePermission("achievement:reject"), lecturerAch.Reject)
 
 }

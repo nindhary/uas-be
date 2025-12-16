@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type MongoAchievementRepository interface {
@@ -17,6 +18,7 @@ type MongoAchievementRepository interface {
 	DeleteByHexID(ctx context.Context, hexID string) error
 	PushHistoryByHexID(ctx context.Context, hexID string, status string) error
 	FindByHexID(ctx context.Context, hexID string) (models.AchievementDetail, error)
+	GetHistory(ctx context.Context, hexID string) ([]bson.M, error)
 }
 
 type mongoAchievementRepo struct {
@@ -86,4 +88,25 @@ func (r *mongoAchievementRepo) FindByHexID(ctx context.Context, hexID string) (m
 	}
 
 	return detail, err
+}
+
+func (r *mongoAchievementRepo) GetHistory(ctx context.Context, hexID string) ([]bson.M, error) {
+	oid, err := primitive.ObjectIDFromHex(hexID)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.M{"_id": oid}
+	projection := bson.M{"history": 1}
+
+	var result struct {
+		History []bson.M `bson:"history"`
+	}
+
+	err = r.col.FindOne(ctx, filter, options.FindOne().SetProjection(projection)).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.History, nil
 }

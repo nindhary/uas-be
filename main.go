@@ -30,7 +30,7 @@ func main() {
 
 	// student dan lecturer
 	studentRepo := repository.NewStudentRepository(database.DB)
-	// lecturerRepo := repository.NewLecturerRepository(database.DB)
+	lecturerRepo := repository.NewLecturerRepository(database.DB)
 
 	// achievements
 	achievementPGRepo := repository.NewAchievementRepository(database.DB)
@@ -42,11 +42,20 @@ func main() {
 		achievementMongoRepo,
 	)
 
+	lecturerAch := service.NewLecturerAchievementService(
+		achievementPGRepo,
+		studentRepo,
+		lecturerRepo,
+		achievementMongoRepo,
+	)
+
 	jwt := middleware.NewJWTMiddleware(userRepo)
 	rbac := middleware.NewRBACMiddleware(adminRepo)
 
 	app := fiber.New()
-	route.RegisterRoutes(app, authService, adminUserService, jwt, rbac, studentAch)
+	route.RegisterRoutes(app, authService, adminUserService, jwt, rbac, studentAch, lecturerAch)
+
+	app.Static("/uploads", "./uploads")
 
 	log.Println("Running on: http://localhost:3000")
 	app.Listen("0.0.0.0:3000")

@@ -4,10 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"uas/app/models"
+
+	"github.com/google/uuid"
 )
 
 type StudentRepository interface {
 	FindByUserID(ctx context.Context, userID string) (models.Student, error)
+	FindByID(ctx context.Context, id uuid.UUID) (models.Student, error)
 }
 
 type studentRepo struct {
@@ -33,4 +36,34 @@ func (r *studentRepo) FindByUserID(ctx context.Context, userID string) (models.S
 	)
 
 	return s, err
+}
+
+func (r *studentRepo) FindByID(ctx context.Context, id uuid.UUID) (models.Student, error) {
+
+	var s models.Student
+
+	err := r.db.QueryRowContext(ctx, `
+		SELECT 
+			id,
+			user_id,
+			student_id,
+			program_study,
+			academic_year,
+			advisor_id
+		FROM students
+		WHERE id = $1
+	`, id).Scan(
+		&s.ID,
+		&s.UserID,
+		&s.StudentID,
+		&s.ProgramStudy,
+		&s.AcademicYear,
+		&s.AdvisorID,
+	)
+
+	if err != nil {
+		return s, err
+	}
+
+	return s, nil
 }

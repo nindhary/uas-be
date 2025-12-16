@@ -13,6 +13,9 @@ type AchievementRepository interface {
 	CreateReference(ctx context.Context, ref models.AchievementRef) error
 	FindByID(ctx context.Context, id uuid.UUID) (models.AchievementRef, error)
 	FindByStudent(ctx context.Context, studentID uuid.UUID) ([]models.AchievementRef, error)
+	FindByAdvisor(ctx context.Context, lecturerID uuid.UUID) ([]models.AchievementRef, error)
+	UpdateStatusVerified(ctx context.Context, id uuid.UUID, lecturerID uuid.UUID, now time.Time) error
+	UpdateStatusRejected(ctx context.Context, id uuid.UUID, lecturerID uuid.UUID, note string, now time.Time) error
 	UpdateStatusSubmitted(ctx context.Context, id uuid.UUID, submittedAt time.Time) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -107,6 +110,73 @@ func (r *achievementRepo) FindByStudent(ctx context.Context, studentID uuid.UUID
 	}
 
 	return list, nil
+}
+
+func (r *achievementRepo) FindByAdvisor(ctx context.Context, lecturerID uuid.UUID) ([]models.AchievementRef, error) {
+	rows, err := r.db.QueryContext(ctx, `
+        SELECT ar.id, ar.student_id, ar.mongo_achievement_id, ar.status,
+               ar.submitted_at, ar.verified_at, ar.verified_by,
+               ar.rejection_note, ar.created_at, ar.updated_at
+        FROM achievement_references ar
+        JOIN students s ON s.id = ar.student_id
+        WHERE s.advisor_id = $1
+        ORDER BY ar.created_at DESC
+    `, lecturerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []models.AchievementRef
+	for rows.Next() {
+		var a models.AchievementRef
+		err := rows.Scan(
+			&a.ID, &a.StudentID, &a.MongoAchievementID, &a.Status,
+			&a.SubmittedAt, &a.VerifiedAt, &a.VerifiedBy,
+			&a.RejectionNote, &a.CreatedAt, &a.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, a)
+	}
+	return list, nil
+}
+
+func (r *achievementRepo) UpdateStatusVerified(
+	ctx context.Context,
+	id uuid.UUID,
+	lecturerID uuid.UUID,
+	now time.Time,
+) error {
+	_, err := r.db.ExecContext(ctx, `
+        UPDATE achievement_references
+        SET status='verified',
+            verified_at=$2,
+            verified_by=$3,
+            updated_at=$2
+        WHERE id=$1
+    `, id, now, lecturerID)
+	return err
+}
+
+func (r *achievementRepo) UpdateStatusRejected(
+	ctx context.Context,
+	id uuid.UUID,
+	lecturerID uuid.UUID,
+	note string,
+	now time.Time,
+) error {
+	_, err := r.db.ExecContext(ctx, `
+        UPDATE achievement_references
+        SET status='rejected',
+            verified_at=$2,
+            verified_by=$3,
+            rejection_note=$4,
+            updated_at=$2
+        WHERE id=$1
+    `, id, now, lecturerID, note)
+	return err
 }
 
 func (r *achievementRepo) UpdateStatusSubmitted(ctx context.Context, id uuid.UUID, submittedAt time.Time) error {
