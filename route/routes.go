@@ -18,6 +18,7 @@ func RegisterRoutes(
 	studentSvc service.StudentService,
 	lecturerSvc service.LecturerService,
 	adminAchievementSvc service.AdminAchievementService,
+	reportSvc service.ReportService,
 ) {
 
 	api := app.Group("/app")
@@ -29,8 +30,6 @@ func RegisterRoutes(
 	authRoute.Get("/profile", jwt.RequireAuth, auth.ProfileHandler)
 	authRoute.Post("/logout", jwt.RequireAuth, auth.Logout)
 
-	// logout belum
-
 	// users
 	users := api.Group("/users")
 
@@ -40,7 +39,6 @@ func RegisterRoutes(
 	users.Put("/:id", jwt.RequireAuth, rbac.RequirePermission("user:manage"), adminUser.Update)
 	users.Delete("/:id", jwt.RequireAuth, rbac.RequirePermission("user:manage"), adminUser.Delete)
 	users.Put("/:id/role", jwt.RequireAuth, rbac.RequirePermission("user:manage"), adminUser.UpdateRole)
-	// yang update role ini nanti diubah buat update password aja
 
 	// achievements
 	achievement := api.Group("student/achievements", jwt.RequireAuth)
@@ -80,5 +78,11 @@ func RegisterRoutes(
 	// admin
 	admin := api.Group("/admin", jwt.RequireAuth)
 	admin.Get("/achievements", rbac.RequirePermission("user:manage"), adminAchievementSvc.GetAll)
+
+	// reports
+	reports := api.Group("/reports", jwt.RequireAuth)
+
+	reports.Get("/statistics", rbac.RequirePermission("user:manage"), reportSvc.GetStatistics)
+	reports.Get("/student/:id", reportSvc.GetStudentStatistics)
 
 }

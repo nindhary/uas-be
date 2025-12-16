@@ -68,6 +68,12 @@ func main() {
 	jwt := middleware.NewJWTMiddleware(userRepo)
 	rbac := middleware.NewRBACMiddleware(adminRepo)
 
+	reportSvc := service.NewReportService(
+		achievementPGRepo,
+		achievementMongoRepo,
+		studentRepo,
+		lecturerRepo,
+	)
 	app := fiber.New()
 
 	route.RegisterRoutes(
@@ -81,6 +87,7 @@ func main() {
 		studentSvc,
 		lecturerSvc,
 		adminAchievementSvc,
+		reportSvc,
 	)
 
 	app.Static("/uploads", "./uploads")
