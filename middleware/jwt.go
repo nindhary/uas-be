@@ -21,6 +21,7 @@ func NewJWTMiddleware(repo repository.UserRepository) *JWTMiddleware {
 
 func (m *JWTMiddleware) RequireAuth(c *fiber.Ctx) error {
 	authHeader := c.Get("Authorization")
+
 	fmt.Println("=== DEBUG MIDDLEWARE ===")
 	fmt.Println("Authorization Header:", authHeader)
 
@@ -30,6 +31,11 @@ func (m *JWTMiddleware) RequireAuth(c *fiber.Ctx) error {
 
 	tokenStr := strings.Replace(authHeader, "Bearer ", "", 1)
 	fmt.Println("Extracted Token:", tokenStr)
+
+	if IsTokenBlacklisted(tokenStr) {
+		fmt.Println("TOKEN IS BLACKLISTED")
+		return helper.Error(c, 401, "token already logged out")
+	}
 
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
@@ -50,7 +56,12 @@ func (m *JWTMiddleware) RequireAuth(c *fiber.Ctx) error {
 		return helper.Error(c, 401, "invalid token")
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		fmt.Println("ERROR: invalid claims type")
+		return helper.Error(c, 401, "invalid token claims")
+	}
+
 	fmt.Println("Claims:", claims)
 
 	userID, ok := claims["id"].(string)
@@ -71,5 +82,7 @@ func (m *JWTMiddleware) RequireAuth(c *fiber.Ctx) error {
 
 	c.Locals("userID", userID)
 	c.Locals("user", user)
+	c.Locals("claims", claims)
+
 	return c.Next()
 }

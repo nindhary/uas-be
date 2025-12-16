@@ -15,6 +15,8 @@ func RegisterRoutes(
 	rbac *middleware.RBACMiddleware,
 	studentAch service.StudentAchievementService,
 	lecturerAch service.LecturerAchievementService,
+	studentSvc service.StudentService,
+	lecturerSvc service.LecturerService,
 ) {
 
 	api := app.Group("/app")
@@ -24,6 +26,8 @@ func RegisterRoutes(
 	authRoute.Post("/login", auth.LoginHandler)
 	authRoute.Post("/refresh", auth.RefreshHandler)
 	authRoute.Get("/profile", jwt.RequireAuth, auth.ProfileHandler)
+	authRoute.Post("/logout", jwt.RequireAuth, auth.Logout)
+
 	// logout belum
 
 	// users
@@ -56,4 +60,19 @@ func RegisterRoutes(
 	lecturer.Post("/:id/verify", rbac.RequirePermission("achievement:verify"), lecturerAch.Verify)
 	lecturer.Post("/:id/reject", rbac.RequirePermission("achievement:reject"), lecturerAch.Reject)
 
+	// students
+	students := api.Group("/students", jwt.RequireAuth)
+
+	students.Get("/", studentSvc.GetAll)
+	students.Get("/:id", studentSvc.GetDetail)
+	students.Get("/:id/achievements", studentSvc.GetMyAchievements)
+	students.Put("/:id/advisor", jwt.RequireAuth, rbac.RequirePermission("user:manage"), studentSvc.UpdateAdvisor)
+	students.Post("/profile", jwt.RequireAuth, rbac.RequirePermission("user:manage"), studentSvc.CreateProfile)
+
+	// lecturers
+	lecturers := api.Group("/lecturers", jwt.RequireAuth)
+
+	lecturers.Get("/", lecturerSvc.GetAll)
+	lecturers.Get("/:id/advisees", rbac.RequirePermission("achievement:read_advisee"), lecturerSvc.GetAdvisees)
+	lecturers.Post("/profile", jwt.RequireAuth, rbac.RequirePermission("user:manage"), lecturerSvc.CreateProfile)
 }

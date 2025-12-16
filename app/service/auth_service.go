@@ -3,10 +3,12 @@ package service
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"uas/app/repository"
 	"uas/helper"
+	"uas/middleware"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -17,6 +19,7 @@ type AuthService interface {
 	LoginHandler(c *fiber.Ctx) error
 	RefreshHandler(c *fiber.Ctx) error
 	ProfileHandler(c *fiber.Ctx) error
+	Logout(c *fiber.Ctx) error
 }
 
 type authService struct {
@@ -195,4 +198,21 @@ func (s *authService) ProfileHandler(c *fiber.Ctx) error {
 	}
 
 	return helper.Success(c, user)
+}
+
+func (s *authService) Logout(c *fiber.Ctx) error {
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return helper.Error(c, 400, "missing token")
+	}
+
+	tokenStr := strings.Replace(authHeader, "Bearer ", "", 1)
+
+	claims := c.Locals("claims").(jwt.MapClaims)
+	expUnix := int64(claims["exp"].(float64))
+	exp := time.Unix(expUnix, 0)
+
+	middleware.BlacklistToken(tokenStr, exp)
+
+	return helper.Success(c, "logged out")
 }

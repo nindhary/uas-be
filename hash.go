@@ -7,6 +7,6 @@
 // )
 
 // func main() {
-// 	hash, _ := bcrypt.GenerateFromPassword([]byte("AdminPass123!"), bcrypt.DefaultCost)
+// 	hash, _ := bcrypt.GenerateFromPassword([]byte("Mhs5Pass123!"), bcrypt.DefaultCost)
 // 	fmt.Println(string(hash))
 // }
