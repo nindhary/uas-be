@@ -17,6 +17,7 @@ func RegisterRoutes(
 	lecturerAch service.LecturerAchievementService,
 	studentSvc service.StudentService,
 	lecturerSvc service.LecturerService,
+	adminAchievementSvc service.AdminAchievementService,
 ) {
 
 	api := app.Group("/app")
@@ -75,4 +76,9 @@ func RegisterRoutes(
 	lecturers.Get("/", lecturerSvc.GetAll)
 	lecturers.Get("/:id/advisees", rbac.RequirePermission("achievement:read_advisee"), lecturerSvc.GetAdvisees)
 	lecturers.Post("/profile", jwt.RequireAuth, rbac.RequirePermission("user:manage"), lecturerSvc.CreateProfile)
+
+	// admin
+	admin := api.Group("/admin", jwt.RequireAuth)
+	admin.Get("/achievements", rbac.RequirePermission("user:manage"), adminAchievementSvc.GetAll)
+
 }

@@ -10,6 +10,8 @@ import (
 )
 
 type AchievementRepository interface {
+	FindAll(ctx context.Context, status string, limit int, offset int) ([]models.AchievementRef, error)
+	CountAll(ctx context.Context, status string) (int, error)
 	CreateReference(ctx context.Context, ref models.AchievementRef) error
 	FindByID(ctx context.Context, id uuid.UUID) (models.AchievementRef, error)
 	FindByStudent(ctx context.Context, studentID uuid.UUID) ([]models.AchievementRef, error)
@@ -26,6 +28,76 @@ type achievementRepo struct {
 
 func NewAchievementRepository(db *sql.DB) AchievementRepository {
 	return &achievementRepo{db}
+}
+
+func (r *achievementRepo) FindAll(
+	ctx context.Context,
+	status string,
+	limit int,
+	offset int,
+) ([]models.AchievementRef, error) {
+
+	var (
+		rows *sql.Rows
+		err  error
+	)
+
+	if status == "" {
+		query := `
+			SELECT id, student_id, status, mongo_achievement_id, created_at, updated_at
+			FROM achievement_references
+			ORDER BY created_at DESC
+			LIMIT $1 OFFSET $2
+		`
+
+		rows, err = r.db.QueryContext(ctx, query, limit, offset)
+	} else {
+		query := `
+			SELECT id, student_id, status, mongo_achievement_id, created_at, updated_at
+			FROM achievement_references
+			WHERE status = $1::achievement_status
+			ORDER BY created_at DESC
+			LIMIT $2 OFFSET $3
+		`
+
+		rows, err = r.db.QueryContext(ctx, query, status, limit, offset)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []models.AchievementRef
+	for rows.Next() {
+		var a models.AchievementRef
+		if err := rows.Scan(
+			&a.ID,
+			&a.StudentID,
+			&a.Status,
+			&a.MongoAchievementID,
+			&a.CreatedAt,
+			&a.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		list = append(list, a)
+	}
+
+	return list, nil
+}
+
+func (r *achievementRepo) CountAll(ctx context.Context, status string) (int, error) {
+	var total int
+
+	query := `
+		SELECT COUNT(*)
+		FROM achievement_references
+		WHERE ($1 = '' OR status = $1)
+	`
+
+	err := r.db.QueryRowContext(ctx, query, status).Scan(&total)
+	return total, err
 }
 
 func (r *achievementRepo) CreateReference(ctx context.Context, ref models.AchievementRef) error {

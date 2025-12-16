@@ -24,15 +24,15 @@ func main() {
 	userRepo := repository.NewUserRepository(database.DB)
 	authService := service.NewAuthService(userRepo)
 
-	// admin
+	// admin user
 	adminRepo := repository.NewAdminUserRepository(database.DB)
 	adminUserService := service.NewAdminUserService(adminRepo)
 
-	// student dan lecturer repo
+	// student & lecturer repo
 	studentRepo := repository.NewStudentRepository(database.DB)
 	lecturerRepo := repository.NewLecturerRepository(database.DB)
 
-	// achievement repo
+	// achievement repo (PG + Mongo)
 	achievementPGRepo := repository.NewAchievementRepository(database.DB)
 	achievementMongoRepo := repository.NewMongoAchievementRepository(database.Mongo)
 
@@ -60,10 +60,16 @@ func main() {
 		lecturerRepo,
 	)
 
+	adminAchievementSvc := service.NewAdminAchievementService(
+		achievementPGRepo,
+		achievementMongoRepo,
+	)
+
 	jwt := middleware.NewJWTMiddleware(userRepo)
 	rbac := middleware.NewRBACMiddleware(adminRepo)
 
 	app := fiber.New()
+
 	route.RegisterRoutes(
 		app,
 		authService,
@@ -74,6 +80,7 @@ func main() {
 		lecturerAch,
 		studentSvc,
 		lecturerSvc,
+		adminAchievementSvc,
 	)
 
 	app.Static("/uploads", "./uploads")

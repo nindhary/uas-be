@@ -13,6 +13,7 @@ import (
 )
 
 type MongoAchievementRepository interface {
+	FindByHexIDs(ctx context.Context, ids []string) ([]models.AchievementDetail, error)
 	Insert(ctx context.Context, a models.AchievementDetail) (*mongo.InsertOneResult, error)
 	UpdateByHexID(ctx context.Context, hexID string, update bson.M) error
 	DeleteByHexID(ctx context.Context, hexID string) error
@@ -23,6 +24,37 @@ type MongoAchievementRepository interface {
 
 type mongoAchievementRepo struct {
 	col *mongo.Collection
+}
+
+func (r *mongoAchievementRepo) FindByHexIDs(
+	ctx context.Context,
+	ids []string,
+) ([]models.AchievementDetail, error) {
+
+	var objIDs []primitive.ObjectID
+	for _, id := range ids {
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			objIDs = append(objIDs, oid)
+		}
+	}
+
+	filter := bson.M{
+		"_id": bson.M{"$in": objIDs},
+	}
+
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []models.AchievementDetail
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func NewMongoAchievementRepository(db *mongo.Database) MongoAchievementRepository {
